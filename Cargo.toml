@@ -1,0 +1,19 @@
+[package]
+name = "zcash-vanity"
+version = "0.1.0"
+authors = ["Jason Davies <jason@jasondavies.com>"]
+description = "Zcash vanity address generator."
+homepage = "https://zcash.plutomonkey.com/vanity/"
+readme = "README.md"
+license = "MIT"
+keywords = ["vanity", "zcash"]
+categories = ["command-line-utilities", "cryptography"]
+
+[dependencies]
+bs58 = "0.2.0"
+byteorder = "1.1.0"
+clap = "2.25.0"
+curve25519-dalek = "0.9.2"
+ocl-core = "0.5.0"
+ring = "0.11.0"
+rust-crypto = "0.2.36"
