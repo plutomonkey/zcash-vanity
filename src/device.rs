@@ -3,28 +3,25 @@ use address::{PAYMENT_ADDRESS_PREFIX, pseudorandom_function_a_pk, SpendingKey};
 use bs58;
 use byteorder::{BigEndian, ByteOrder};
 use core;
-use core::{KernelArg, KernelWorkGroupInfo, KernelWorkGroupInfoResult, CommandExecutionStatus, ContextProperties, Event, EventInfo, EventInfoResult, DeviceInfo, DeviceInfoResult, DeviceId, PlatformId};
+use core::{KernelArg, CommandExecutionStatus, ContextProperties, Event, EventInfo, EventInfoResult, DeviceId, PlatformId};
 use ring::rand::SecureRandom;
-use std::{cmp, str, thread, time};
+use std::{cmp, str, thread};
 use std::io::{self, Write};
 use std::sync::atomic;
 use std::sync::mpsc::Sender;
+use std::time::Duration;
 use std::ffi::CString;
+use util::clear_console_line_80;
 
 const MAX_DATA: usize = 1 + 1024;
 const ITERATIONS_PER_THREAD: usize = 1024;
 
-pub struct VanityWork {
-    pub id: usize,
-    pub rate: f64,
-}
+pub fn vanity_device(finished: &atomic::AtomicBool, rng: &SecureRandom, tx: &Sender<u64>, platform: PlatformId, device: DeviceId, patterns_sorted: &[String], pattern_words: &[u64], single_match: bool) {
 
-pub fn vanity_device(id: usize, finished: &atomic::AtomicBool, rng: &SecureRandom, tx: &Sender<VanityWork>, platform: PlatformId, device: DeviceId, patterns_sorted: &[String], pattern_words: &[u64], single_match: bool) {
     let pattern_count = patterns_sorted.len();
     let pattern_count_log2 = (32 - ((pattern_words.len()/2 - 1) as u32).leading_zeros()) as u32;
 
     let context_properties = ContextProperties::new().platform(platform);
-
     let context = core::create_context(Some(&context_properties), &[device], None, None).unwrap();
     let queue = core::create_command_queue(&context, &device, None).unwrap();
     let program = core::create_program_with_source(&context, &[
@@ -47,30 +44,29 @@ pub fn vanity_device(id: usize, finished: &atomic::AtomicBool, rng: &SecureRando
     core::enqueue_write_buffer(&queue, &dev_out, false, 0, &dev_data, None::<Event>, None::<&mut Event>).unwrap();
     core::enqueue_write_buffer(&queue, &dev_patterns, false, 0, pattern_words, None::<Event>, None::<&mut Event>).unwrap();
 
-    let local_size = match core::get_kernel_work_group_info(&compress, &device, KernelWorkGroupInfo::WorkGroupSize) {
-        KernelWorkGroupInfoResult::WorkGroupSize(size) => [size, 0, 0],
+    let local_size = match core::get_kernel_work_group_info(&compress, &device, core::KernelWorkGroupInfo::WorkGroupSize) {
+        core::KernelWorkGroupInfoResult::WorkGroupSize(size) => [size, 0, 0],
         _ => panic!("Unable to determine work group size."),
     };
 
-    let global_size = match core::get_device_info(&device, DeviceInfo::MaxComputeUnits) {
-        DeviceInfoResult::MaxComputeUnits(compute_units) => [local_size[0] * compute_units as usize * 4, 1, 1],
+    let global_size = match core::get_device_info(&device, core::DeviceInfo::MaxComputeUnits) {
+        core::DeviceInfoResult::MaxComputeUnits(compute_units) => [local_size[0] * compute_units as usize * 4, 1, 1],
         _ => panic!("Unable to determine number of compute units."),
     };
     assert!(global_size[0] < (1 << 28));
 
-    let device_little_endian = match core::get_device_info(&device, DeviceInfo::EndianLittle) {
-        DeviceInfoResult::EndianLittle(d) => d,
+    let device_little_endian = match core::get_device_info(&device, core::DeviceInfo::EndianLittle) {
+        core::DeviceInfoResult::EndianLittle(d) => d,
         _ => cfg!(target_endian = "little"),
     };
 
     let mut a_pk = [0u8; 32];
     let mut unencoded_data = [0u8; 2 + 32*2 + 4];
-    unencoded_data[0] = PAYMENT_ADDRESS_PREFIX[0];
-    unencoded_data[1] = PAYMENT_ADDRESS_PREFIX[1];
+    unencoded_data[..2].copy_from_slice(&PAYMENT_ADDRESS_PREFIX);
 
+    let one_millis = Duration::from_millis(1);
     let mut stderr = io::stderr();
     'outer: loop {
-        let now = time::Instant::now();
         rng.fill(&mut seed).unwrap();
         if device_little_endian {
             seed[3] = 0xc0 | (seed[3] & 0x0f);
@@ -109,8 +105,7 @@ pub fn vanity_device(id: usize, finished: &atomic::AtomicBool, rng: &SecureRando
                 }
 
                 let spending_key = SpendingKey::new(seed);
-                write!(&mut stderr, "\r{}\r", " ".repeat(80)).unwrap();
-                stderr.flush().unwrap();
+                clear_console_line_80(&mut stderr);
                 println!("{}", spending_key.address());
                 println!("{}", spending_key);
                 io::stdout().flush().unwrap();
@@ -121,29 +116,29 @@ pub fn vanity_device(id: usize, finished: &atomic::AtomicBool, rng: &SecureRando
             }
         }
 
-        // avoid CPU busy-wait on NVIDIA
-        let one_millis = time::Duration::from_millis(1);
         core::flush(&queue).unwrap();
-        loop {
-            match core::get_event_info(&event, EventInfo::CommandExecutionStatus) {
-                EventInfoResult::CommandExecutionStatus(CommandExecutionStatus::Complete) => break,
-                EventInfoResult::CommandExecutionStatus(_) => thread::sleep(one_millis),
-                _ => panic!("Unexpected EventInfoResult."),
-            }
-        }
+        sleep_until_complete(&event, &one_millis);
 
         data.copy_from_slice(&dev_data);
         dev_data[0] = 0;
         let zero_count = [0u32];
         core::enqueue_write_buffer(&queue, &dev_out, false, 0, &zero_count, None::<Event>, None::<&mut Event>).unwrap();
 
-        let elapsed = now.elapsed();
-        let elapsed_secs = (elapsed.as_secs() as f64) + (elapsed.subsec_nanos() as f64 / 1_000_000_000.0);
-        let rate = (ITERATIONS_PER_THREAD * global_size[0]) as f64 / elapsed_secs;
-        tx.send(VanityWork { id: id, rate: rate }).unwrap();
+        tx.send((ITERATIONS_PER_THREAD * global_size[0]) as u64).unwrap();
     }
 
     core::finish(&queue).unwrap();
+}
+
+/// Avoid CPU busy-wait on NVIDIA platforms.
+fn sleep_until_complete(event: &Event, &sleep_time: &Duration) {
+    loop {
+        match core::get_event_info(&event, EventInfo::CommandExecutionStatus) {
+            EventInfoResult::CommandExecutionStatus(CommandExecutionStatus::Complete) => break,
+            EventInfoResult::CommandExecutionStatus(_) => thread::sleep(sleep_time),
+            _ => panic!("Unexpected EventInfoResult."),
+        }
+    }
 }
 
 const SRC: &'static str = r#"

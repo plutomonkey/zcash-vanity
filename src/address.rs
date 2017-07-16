@@ -49,8 +49,7 @@ impl fmt::Display for ViewingKey {
 impl fmt::Display for PaymentAddress {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut data = [0u8; 2 + 32 * 2];
-        data[0] = PAYMENT_ADDRESS_PREFIX[0];
-        data[1] = PAYMENT_ADDRESS_PREFIX[1];
+        data[..2].copy_from_slice(&PAYMENT_ADDRESS_PREFIX);
         data[2..34].copy_from_slice(&self.a_pk);
         data[34..66].copy_from_slice(&self.pk_enc);
 

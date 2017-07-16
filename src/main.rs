@@ -14,7 +14,6 @@ mod util;
 
 use clap::{App, Arg};
 use core::{PlatformInfo, DeviceInfo, DeviceId, PlatformId};
-use device::VanityWork;
 use pattern::Pattern;
 use ring::rand::SystemRandom;
 use std::{str, thread, time};
@@ -114,42 +113,48 @@ fn vanity(devices: &[(PlatformId, DeviceId)], patterns: &[Pattern], single_match
         search_size += to - from;
     }
 
-    let (tx, rx): (Sender<VanityWork>, Receiver<VanityWork>) = mpsc::channel();
+    let (tx, rx): (Sender<u64>, Receiver<u64>) = mpsc::channel();
     let pattern_prefixes = Arc::new(pattern_prefixes);
     let pattern_words = Arc::new(pattern_words);
     let rng = Arc::new(SystemRandom::new());
     let finished = Arc::new(atomic::AtomicBool::new(false));
 
-    for (id, &device_specifier) in devices.iter().enumerate() {
+    for &device_specifier in devices {
         let tx = tx.clone();
         let pattern_prefixes = pattern_prefixes.clone();
         let pattern_words = pattern_words.clone();
         let rng = rng.clone();
         let finished = finished.clone();
         thread::spawn(move || {
-            device::vanity_device(id, &*finished, &*rng, &tx, device_specifier.0, device_specifier.1, &*pattern_prefixes, &*pattern_words, single_match);
+            device::vanity_device(&*finished, &*rng, &tx, device_specifier.0, device_specifier.1, &*pattern_prefixes, &*pattern_words, single_match);
             finished.store(true, atomic::Ordering::Relaxed);
         });
     }
     drop(tx);
 
     let difficulty = (!0u64 as f64) / (search_size as f64);
-    let thread_count = devices.len();
-    let mut rate_samples = vec![0f64; thread_count];
-
     let start = time::Instant::now();
+    let mut cumulative_work = 0u64;
+    let mut now = start;
     let mut stderr = io::stderr();
-    while let Ok(VanityWork { id, rate }) = rx.recv() {
-        rate_samples[id] = rate;
 
-        let rate = rate_samples.iter().sum::<f64>();
+    while let Ok(work) = rx.recv() {
+        cumulative_work += work;
+        let now_elapsed = now.elapsed();
 
-        let start_elapsed = start.elapsed();
-        let start_elapsed_secs = (start_elapsed.as_secs() as f64) + (start_elapsed.subsec_nanos() as f64 / 1_000_000_000.0);
+        if now_elapsed.as_secs() > 0 {
+            let start_elapsed = start.elapsed();
+            let start_elapsed_secs = (start_elapsed.as_secs() as f64) + (start_elapsed.subsec_nanos() as f64 / 1_000_000_000.0);
 
-        let lambda = rate / difficulty;
-        let probability = 1. - (-start_elapsed_secs * lambda).exp();
-        write!(&mut stderr, "\rElapsed: {:.0}/{:.0}s Rate: {:.0}/s Prob: {:.2}%", start_elapsed_secs, 1. / lambda, rate, 100. * probability).unwrap();
-        stderr.flush().unwrap();
+            let rate = cumulative_work as f64 / (now_elapsed.as_secs() as f64) + (now_elapsed.subsec_nanos() as f64 / 1_000_000_000.0);
+            let lambda = rate / difficulty;
+            let probability = 1. - (-start_elapsed_secs * lambda).exp();
+
+            write!(&mut stderr, "\rElapsed: {:.0}/{:.0}s Rate: {:.0}/s Prob: {:.2}%", start_elapsed_secs, 1. / lambda, rate, 100. * probability).unwrap();
+            stderr.flush().unwrap();
+
+            cumulative_work = 0;
+            now += now_elapsed;
+        }
     }
 }
