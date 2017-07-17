@@ -1,9 +1,10 @@
 [package]
 name = "zcash-vanity"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Jason Davies <jason@jasondavies.com>"]
 description = "Zcash vanity address generator."
 homepage = "https://zcash.plutomonkey.com/vanity/"
+repository = "https://github.com/plutomonkey/zcash-vanity"
 readme = "README.md"
 license = "MIT"
 keywords = ["vanity", "zcash"]
