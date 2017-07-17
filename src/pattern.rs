@@ -47,13 +47,13 @@ impl Pattern {
         let mut max = 1;
         while i < max {
             let mut tmp = prefix_bytes.clone().to_owned();
-            let mut k = 1;
+            let mut k = 1u64;
             for c in &mut tmp {
                 if alpha[rev[*c as usize]] != *c {
                     if i & k != 0 {
                         *c = alpha[rev[*c as usize]];
                     }
-                    k *= 2;
+                    k <<= 1;
                 }
             }
             max = k;
@@ -72,7 +72,9 @@ fn prefix_to_range_u64(prefix: &str) -> Result<(u64, u64), String> {
     let mut address_data = [0u8; 2 + 32 * 2 + 4];
     address_data[..2].copy_from_slice(&PAYMENT_ADDRESS_PREFIX);
     let address_00 = bs58::encode(address_data.as_ref()).into_string();
-    for d in address_data.iter_mut().skip(2) { *d = 0xff; }
+    for d in address_data.iter_mut().skip(2) {
+        *d = 0xff;
+    }
     let address_ff = bs58::encode(address_data.as_ref()).into_string();
 
     let suffix_length = address_ff.len() - prefix.len();
@@ -80,10 +82,18 @@ fn prefix_to_range_u64(prefix: &str) -> Result<(u64, u64), String> {
     let prefix_z = prefix.to_owned() + &"z".repeat(suffix_length);
 
     if prefix_z < address_00 {
-        return Err(format!("Invalid z-addr: {} < {}", prefix, &address_00[..prefix.len()]));
+        return Err(format!(
+            "Invalid z-addr: {} < {}",
+            prefix,
+            &address_00[..prefix.len()]
+        ));
     }
     if prefix_1 > address_ff {
-        return Err(format!("Invalid z-addr: {} > {}", prefix, &address_ff[..prefix.len()]));
+        return Err(format!(
+            "Invalid z-addr: {} > {}",
+            prefix,
+            &address_ff[..prefix.len()]
+        ));
     }
 
     let pattern_1 = if prefix_1 < address_00 {
@@ -101,4 +111,55 @@ fn prefix_to_range_u64(prefix: &str) -> Result<(u64, u64), String> {
     };
 
     Ok((pattern_1, pattern_z))
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn case_insensitive_vanity() {
+        let pattern = Pattern::new("zcVANiTY".to_string()).unwrap();
+        assert_eq!(
+            pattern
+                .case_insensitive()
+                .iter()
+                .map(|p| p.prefix.as_str())
+                .collect::<Vec<&str>>(),
+            vec![
+                "zcVANiTY",
+                "zcVaNiTY",
+                "zcVAniTY",
+                "zcVaniTY",
+                "zcVANitY",
+                "zcVaNitY",
+                "zcVAnitY",
+                "zcVanitY",
+                "zcVANiTy",
+                "zcVaNiTy",
+                "zcVAniTy",
+                "zcVaniTy",
+                "zcVANity",
+                "zcVaNity",
+                "zcVAnity",
+                "zcVanity",
+            ]
+        );
+    }
+
+    #[test]
+    fn case_insensitive_a() {
+        let pattern = Pattern::new("zcA".to_string()).unwrap();
+        assert_eq!(
+            pattern
+                .case_insensitive()
+                .iter()
+                .map(|p| p.prefix.as_str())
+                .collect::<Vec<&str>>(),
+            vec![
+                "zcA",
+                "zca",
+            ]
+        );
+    }
 }
