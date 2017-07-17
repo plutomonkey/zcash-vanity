@@ -52,20 +52,20 @@ fn main() {
                      You can import the spending key to your Zcash client using `zcash-cli z_importkey <key> <rescan>`.")
         .get_matches();
 
-    let mut device_values = if matches.is_present("device") {
-        matches.values_of("device").unwrap().collect::<Vec<&str>>()
+    let mut device_specifiers = if matches.is_present("device") {
+        matches.values_of("device").unwrap().map(|s| {
+            let mut values = s.split(':');
+            (values.next().unwrap().parse::<usize>().unwrap(), values.next().unwrap().parse::<usize>().unwrap())
+        }).collect()
     } else {
         vec![]
     };
-    device_values.sort();
-    let mut device_specifiers = device_values.iter().map(|s| {
-        let mut values = s.split(':');
-        (values.next().unwrap().parse::<usize>().unwrap(), values.next().unwrap().parse::<usize>().unwrap())
-    });
+    device_specifiers.sort();
+    let mut device_specifiers_iter = device_specifiers.into_iter();
 
     let mut stderr = io::stderr();
     let mut devices = vec![];
-    let mut device_specifier = device_specifiers.next();
+    let mut device_specifier = device_specifiers_iter.next();
     let all_devices = device_specifier.is_none();
     for (i, &platform) in core::get_platform_ids().unwrap().iter().enumerate() {
         writeln!(&mut stderr, "Available devices on platform {}:", core::get_platform_info(&platform, PlatformInfo::Name)).unwrap();
@@ -73,7 +73,7 @@ fn main() {
             writeln!(&mut stderr, "  {}:{} {}", i, j, core::get_device_info(device, DeviceInfo::Name)).unwrap();
             if all_devices || Some((i, j)) == device_specifier {
                 devices.push((platform, device));
-                device_specifier = device_specifiers.next();
+                device_specifier = device_specifiers_iter.next();
             }
         }
     }
