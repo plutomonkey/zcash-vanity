@@ -111,11 +111,11 @@ fn vanity(devices: &[(PlatformId, DeviceId)], patterns: &[Pattern], single_match
     // lexicographic ordering of the default base58 alphabet being equivalent to ordering of the
     // big-endian data.
     let mut pattern_words = vec![];
-    let mut search_size = 0;
+    let mut search_size = 0.0_f64;
     for (from, to) in pattern_ranges {
         pattern_words.push(from);
         pattern_words.push(to);
-        search_size += 1 + to - from;
+        search_size += 1.0_f64 + (to - from) as f64;
     }
 
     let (tx, rx): (Sender<u64>, Receiver<u64>) = mpsc::channel();
@@ -137,7 +137,7 @@ fn vanity(devices: &[(PlatformId, DeviceId)], patterns: &[Pattern], single_match
     }
     drop(tx);
 
-    let difficulty = 2.0_f64.powi(64) / (search_size as f64);
+    let difficulty = 2.0_f64.powi(64) / search_size;
     let start = time::Instant::now();
     let mut cumulative_work = 0u64;
     let mut now = start;
