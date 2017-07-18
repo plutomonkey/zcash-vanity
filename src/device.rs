@@ -165,11 +165,11 @@ __constant uint32_t H[8] = {
   0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
 };
 
-inline static uint32_t rotr(const uint32_t x, const uint32_t n) {
+inline uint32_t rotr(const uint32_t x, const uint32_t n) {
   return (x >> n) | (x << (32 - n));
 }
 
-inline static uint32_t shr(const uint32_t x, const uint32_t n) {
+inline uint32_t shr(const uint32_t x, const uint32_t n) {
   return x >> n;
 }
 
