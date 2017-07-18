@@ -1,3 +1,8 @@
+#![cfg_attr(feature = "clippy", deny(warnings))]
+#![cfg_attr(feature = "clippy", feature(plugin))]
+#![cfg_attr(feature = "clippy", plugin(clippy))]
+#![cfg_attr(feature = "clippy", allow(too_many_arguments))]
+
 extern crate bs58;
 extern crate byteorder;
 extern crate clap;
