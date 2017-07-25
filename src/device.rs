@@ -35,13 +35,12 @@ pub fn vanity_device(finished: &atomic::AtomicBool, rng: &SecureRandom, tx: &Sen
 
     let mut seed = [0u8; 32];
     let mut data = [0u32; MAX_DATA];
-    let mut dev_data = [0u32; MAX_DATA];
 
     let dev_seed = unsafe { core::create_buffer(&context, core::MEM_READ_ONLY, 32, None::<&[u8]>).unwrap() };
     let dev_patterns = unsafe { core::create_buffer(&context, core::MEM_READ_ONLY, pattern_words.len(), None::<&[u64]>).unwrap() };
     let dev_out = unsafe { core::create_buffer(&context, core::MEM_READ_WRITE, MAX_DATA, None::<&[u32]>).unwrap() };
 
-    core::enqueue_write_buffer(&queue, &dev_out, false, 0, &dev_data, None::<Event>, None::<&mut Event>).unwrap();
+    core::enqueue_write_buffer(&queue, &dev_out, false, 0, &data, None::<Event>, None::<&mut Event>).unwrap();
     core::enqueue_write_buffer(&queue, &dev_patterns, false, 0, pattern_words, None::<Event>, None::<&mut Event>).unwrap();
 
     let local_size = match core::get_kernel_work_group_info(&compress, &device, core::KernelWorkGroupInfo::WorkGroupSize) {
@@ -85,7 +84,10 @@ pub fn vanity_device(finished: &atomic::AtomicBool, rng: &SecureRandom, tx: &Sen
         core::enqueue_kernel(&queue, &compress, 1, None, &global_size, Some(local_size), None::<Event>, None::<&mut Event>).unwrap();
 
         let mut event = Event::null();
-        unsafe { core::enqueue_read_buffer(&queue, &dev_out, false, 0, &mut dev_data, None::<Event>, Some(&mut event)).unwrap(); }
+        unsafe { core::enqueue_read_buffer(&queue, &dev_out, false, 0, &mut data, None::<Event>, Some(&mut event)).unwrap(); }
+
+        core::flush(&queue).unwrap();
+        sleep_until_complete(&event, &one_millis);
 
         if finished.load(atomic::Ordering::Relaxed) {
             break;
@@ -106,8 +108,7 @@ pub fn vanity_device(finished: &atomic::AtomicBool, rng: &SecureRandom, tx: &Sen
 
                 let spending_key = SpendingKey::new(seed);
                 clear_console_line_80(&mut stderr);
-                println!("{}", spending_key.address());
-                println!("{}", spending_key);
+                print!("{}\n{}\n", spending_key.address(), spending_key);
                 io::stdout().flush().unwrap();
 
                 if single_match {
@@ -116,11 +117,6 @@ pub fn vanity_device(finished: &atomic::AtomicBool, rng: &SecureRandom, tx: &Sen
             }
         }
 
-        core::flush(&queue).unwrap();
-        sleep_until_complete(&event, &one_millis);
-
-        data.copy_from_slice(&dev_data);
-        dev_data[0] = 0;
         let zero_count = [0u32];
         core::enqueue_write_buffer(&queue, &dev_out, false, 0, &zero_count, None::<Event>, None::<&mut Event>).unwrap();
 
