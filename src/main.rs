@@ -30,7 +30,7 @@ use std::sync::mpsc::{self, Sender, Receiver};
 
 fn main() {
     let matches = App::new("Zcash Vanity Address Generator")
-        .version("0.0.1")
+        .version(env!("CARGO_PKG_VERSION"))
         .about("Generates Zcash shielded addresses (\"z-addrs\") that match given prefixes.")
         .arg(Arg::with_name("device")
              .short("d")
