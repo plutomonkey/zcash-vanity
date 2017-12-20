@@ -21,7 +21,7 @@ use clap::{App, Arg};
 use core::{PlatformInfo, DeviceInfo, DeviceId, PlatformId};
 use pattern::Pattern;
 use ring::rand::SystemRandom;
-use std::{str, thread, time};
+use std::{thread, time};
 use std::fs::File;
 use std::io::{self, Read, Write};
 use std::sync::Arc;
