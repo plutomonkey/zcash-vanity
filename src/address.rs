@@ -6,7 +6,7 @@ use util::bs58_encode_check;
 
 pub const PAYMENT_ADDRESS_PREFIX: [u8; 2] = [0x16, 0x9a];
 pub const SPENDING_KEY_PREFIX: [u8; 2] = [0xab, 0x36];
-pub const VIEWING_KEY_PREFIX: [u8; 2] = [0x0b, 0x1c];
+pub const VIEWING_KEY_PREFIX: [u8; 3] = [0xa8,0xab, 0xd3];
 
 /// A Zcash spending key.
 pub struct SpendingKey {
@@ -37,8 +37,8 @@ impl fmt::Display for SpendingKey {
 
 impl fmt::Display for ViewingKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut data = [0u8; 2 + 32 * 2];
-        data[..2].copy_from_slice(&VIEWING_KEY_PREFIX);
+        let mut data = [0u8; 3 + 32 * 2];
+        data[..3].copy_from_slice(&VIEWING_KEY_PREFIX);
         data[2..34].copy_from_slice(&self.sk_enc);
         data[34..66].copy_from_slice(&self.pk_enc);
 
@@ -121,32 +121,37 @@ mod test {
     use bs58;
     use super::*;
 
-    static ENCODED: [(&str, &str); 5] = [
+    static ENCODED: [(&str, &str, &str); 5] = [
         (
             "SKxny894fJe2rmZjeuoE6GVfNkWoXfPp8337VrLLNWG56FfQtuS1",
             "zcbxovDeXGJJikZH5wQkcQvYx1gzsRt9mR5UnQir6NY8hhPHdgK7z7dE1vfa55Bq3JHJu7isfuWQGYrvMbLnud74z2vS4tS",
+            "ZiUBSSMXjXXeFEJVTNiEh3frFcxpBwuCWHEjnobHfGS2keQNF3LTJGGaBRcfamK4rBZHve1kh4YjSCLGwtZpt35WuzHSBTvC3",
         ),
         (
             "SKxoo5QkFQgTbdc6EWRKyHPMdmtNDJhqudrAVhen9b4kjCwN6CeV",
             "zcRYvLiURno1LhXq95e8avXFcH2fKKToSFfhqaVKTy8mGH7i6SJbfuWcm4h9rEA6DvswrbxDhFGDQgpdDYV8zwUoHvwNvFX",
+            "ZiTn6ZX2k5RyZ2pUZDtNMA97FK2pYNzAt2cZwMc1ZN8SwUNUKFWSbAahYakDUSWcJZYQuUBzdfDMqYdJ6VNxa8G4388qgSHFq",
         ),
         (
             "SKxsVGKsCESoVb3Gfm762psjRtGHmjmv7HVjHckud5MnESfktUuG",
             "zcWGguu2UPfNhh1ygWW9Joo3osvncsuehtz5ewvXd78vFDdnDCRNG6QeKSZpwZmYmkfEutPVf8HzCfBytqXWsEcF2iBAM1e",
+            "ZiVgrhGoZJzDZQn6whow6sHZEcLMSsU6iwghsqdbbFdG7XjDppunWwGEUm4jjjffpqzNCmF9g6DcteQQk4GYwkknWP3TLdr3C",  
         ),
         (
             "SKxp72QGQ2qtovHSoVnPp8jRFQpHBhG1xF8s27iRFjPXXkYMQUA6",
             "zcWZomPYMEjJ49S4UHcvTnhjYqogfdYJuEDMURDpbkrz94bkzdTdJEZKWkkpQ8nK62eyLkZCvLZDFtLC2Cq5BmEK3WCKGMN",
+            "ZiThWXyRSm1gWKLi3Z17CZPEqrqwrpbWeGeR6HT9iMzSYkGs7shmeyDypffhS3CMyRxJ6D2XaoY1gSU4MGSpzXXq9JXvPTnPS",
         ),
         (
             "SKxpmLdykLu3xxSXtw1EA7iLJnXu8hFh8hhmW1B2J2194ijh5CR4",
             "zcgjj3fJF59QGBufopx3F51jCjUpXbgEzec7YQT6jRt4Ebu5EV3AW4jHPN6ZdXhmygBvQDRJrXoZLa3Lkh5GqnsFUzt7Qok",
+            "ZiVhAKxsvDeBoATdHsPwDAUuBeKYHwovTz841wNmemSnesn4PqHCYikBdFrCfdxY464yYuJZVoZs5fC3AQz9hQhSTf7q4LEb7",
         ),
     ];
 
     #[test]
     fn spending_keys_to_payment_addresses() {
-        for &(spending_key_encoded, payment_address_encoded) in ENCODED.iter() {
+        for &(spending_key_encoded, payment_address_encoded, _) in ENCODED.iter() {
             let mut a_sk = [0u8; 32];
             a_sk.copy_from_slice(
                 &bs58::decode(spending_key_encoded).into_vec().unwrap()[2..34],
@@ -155,6 +160,20 @@ mod test {
             assert_eq!(spending_key_encoded, spending_key.to_string());
             let payment_address = spending_key.address();
             assert_eq!(payment_address_encoded, payment_address.to_string());
+        }
+    }
+
+    #[test]
+    fn spending_keys_to_viewing_keys() {
+        for &(spending_key_encoded, _,viewing_key_encoded) in ENCODED.iter() {
+            let mut a_sk = [0u8; 32];
+            a_sk.copy_from_slice(
+                &bs58::decode(spending_key_encoded).into_vec().unwrap()[2..34],
+            );
+            let spending_key = SpendingKey::new(a_sk);
+            assert_eq!(spending_key_encoded, spending_key.to_string());
+            let viewing_key = spending_key.viewing_key();
+            assert_eq!(viewing_key_encoded, viewing_key.to_string());
         }
     }
 }
