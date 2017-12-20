@@ -4,9 +4,12 @@ use sha256::sha256_compress;
 use std::fmt;
 use util::bs58_encode_check;
 
-pub const PAYMENT_ADDRESS_PREFIX: [u8; 2] = [0x16, 0x9a];
-pub const SPENDING_KEY_PREFIX: [u8; 2] = [0xab, 0x36];
-pub const VIEWING_KEY_PREFIX: [u8; 3] = [0xa8,0xab, 0xd3];
+const PAYMENT_ADDRESS_PREFIX_LENGTH: usize = 2;
+const SPENDING_KEY_PREFIX_LENGTH: usize = 2;
+const INVIEWING_KEY_PREFIX_LENGTH: usize = 3;
+pub const PAYMENT_ADDRESS_PREFIX: [u8; PAYMENT_ADDRESS_PREFIX_LENGTH] = [0x16, 0x9a];
+pub const SPENDING_KEY_PREFIX: [u8; SPENDING_KEY_PREFIX_LENGTH] = [0xab, 0x36];
+pub const INVIEWING_KEY_PREFIX: [u8; INVIEWING_KEY_PREFIX_LENGTH] = [0xa8, 0xab, 0xd3];
 
 /// A Zcash spending key.
 pub struct SpendingKey {
@@ -27,9 +30,12 @@ pub struct PaymentAddress {
 
 impl fmt::Display for SpendingKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut data = [0u8; 2 + 32];
-        data[..2].copy_from_slice(&SPENDING_KEY_PREFIX);
-        data[2..34].copy_from_slice(&self.a_sk);
+        let mut data = [0u8; SPENDING_KEY_PREFIX_LENGTH + 32];
+        {
+            let (prefix, rest) = data.split_at_mut(SPENDING_KEY_PREFIX_LENGTH);
+            prefix.copy_from_slice(&SPENDING_KEY_PREFIX);
+            rest.copy_from_slice(&self.a_sk);
+        }
 
         f.write_str(bs58_encode_check(&data).as_str())
     }
@@ -37,10 +43,13 @@ impl fmt::Display for SpendingKey {
 
 impl fmt::Display for ViewingKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut data = [0u8; 3 + 32 * 2];
-        data[..3].copy_from_slice(&VIEWING_KEY_PREFIX);
-        data[2..34].copy_from_slice(&self.sk_enc);
-        data[34..66].copy_from_slice(&self.pk_enc);
+        let mut data = [0u8; INVIEWING_KEY_PREFIX_LENGTH + 32 * 2];
+        {
+            let (prefix, rest) = data.split_at_mut(INVIEWING_KEY_PREFIX_LENGTH);
+            prefix.copy_from_slice(&INVIEWING_KEY_PREFIX);
+            rest[..32].copy_from_slice(&self.sk_enc);
+            rest[32..].copy_from_slice(&self.pk_enc);
+        }
 
         f.write_str(bs58_encode_check(&data).as_str())
     }
@@ -48,10 +57,13 @@ impl fmt::Display for ViewingKey {
 
 impl fmt::Display for PaymentAddress {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut data = [0u8; 2 + 32 * 2];
-        data[..2].copy_from_slice(&PAYMENT_ADDRESS_PREFIX);
-        data[2..34].copy_from_slice(&self.a_pk);
-        data[34..66].copy_from_slice(&self.pk_enc);
+        let mut data = [0u8; PAYMENT_ADDRESS_PREFIX_LENGTH + 32 * 2];
+        {
+            let (prefix, rest) = data.split_at_mut(PAYMENT_ADDRESS_PREFIX_LENGTH);
+            prefix.copy_from_slice(&PAYMENT_ADDRESS_PREFIX);
+            rest[..32].copy_from_slice(&self.a_pk);
+            rest[32..].copy_from_slice(&self.pk_enc);
+        }
 
         f.write_str(bs58_encode_check(&data).as_str())
     }
@@ -125,27 +137,27 @@ mod test {
         (
             "SKxny894fJe2rmZjeuoE6GVfNkWoXfPp8337VrLLNWG56FfQtuS1",
             "zcbxovDeXGJJikZH5wQkcQvYx1gzsRt9mR5UnQir6NY8hhPHdgK7z7dE1vfa55Bq3JHJu7isfuWQGYrvMbLnud74z2vS4tS",
-            "ZiUBSSMXjXXeFEJVTNiEh3frFcxpBwuCWHEjnobHfGS2keQNF3LTJGGaBRcfamK4rBZHve1kh4YjSCLGwtZpt35WuzHSBTvC3",
+            "ZiVKaybZk1ocKMDtadmSWDfGjG4bg5qwRrKjGkF25LogWChMMoLLKvBu1wc4vD5h7Ho82EhsAHqziobbxEwiqaKQELQDuLTg4",
         ),
         (
             "SKxoo5QkFQgTbdc6EWRKyHPMdmtNDJhqudrAVhen9b4kjCwN6CeV",
             "zcRYvLiURno1LhXq95e8avXFcH2fKKToSFfhqaVKTy8mGH7i6SJbfuWcm4h9rEA6DvswrbxDhFGDQgpdDYV8zwUoHvwNvFX",
-            "ZiTn6ZX2k5RyZ2pUZDtNMA97FK2pYNzAt2cZwMc1ZN8SwUNUKFWSbAahYakDUSWcJZYQuUBzdfDMqYdJ6VNxa8G4388qgSHFq",
+            "ZiVKVgrnKKboikjuwGtWACnB89CKN3DwCLp8o92LN5sh3xqVzX4y2YBy89CJs1gQEsQv3N9HEMc6ki1giTKCjcbytCWAENz7k",
         ),
         (
             "SKxsVGKsCESoVb3Gfm762psjRtGHmjmv7HVjHckud5MnESfktUuG",
             "zcWGguu2UPfNhh1ygWW9Joo3osvncsuehtz5ewvXd78vFDdnDCRNG6QeKSZpwZmYmkfEutPVf8HzCfBytqXWsEcF2iBAM1e",
-            "ZiVgrhGoZJzDZQn6whow6sHZEcLMSsU6iwghsqdbbFdG7XjDppunWwGEUm4jjjffpqzNCmF9g6DcteQQk4GYwkknWP3TLdr3C",  
+            "ZiVKvnKuy7eRa9Ux7nT7QRQEPzt2wmvpqTpNsf3FHZVNf7utNA8TRdaKrwuceqYxen3GRQhh4Aq1q2PPJ8dyxPNxEhLN8kBsK",
         ),
         (
             "SKxp72QGQ2qtovHSoVnPp8jRFQpHBhG1xF8s27iRFjPXXkYMQUA6",
             "zcWZomPYMEjJ49S4UHcvTnhjYqogfdYJuEDMURDpbkrz94bkzdTdJEZKWkkpQ8nK62eyLkZCvLZDFtLC2Cq5BmEK3WCKGMN",
-            "ZiThWXyRSm1gWKLi3Z17CZPEqrqwrpbWeGeR6HT9iMzSYkGs7shmeyDypffhS3CMyRxJ6D2XaoY1gSU4MGSpzXXq9JXvPTnPS",
+            "ZiVKUeb2TBbiDWz5WEhRo6keLjku9efg6Q3HNUidPUks24ZcsuQwy9wca2sVAg72S87LV1U3kvwf5FUqVpnddNCFh81cash76",
         ),
         (
             "SKxpmLdykLu3xxSXtw1EA7iLJnXu8hFh8hhmW1B2J2194ijh5CR4",
             "zcgjj3fJF59QGBufopx3F51jCjUpXbgEzec7YQT6jRt4Ebu5EV3AW4jHPN6ZdXhmygBvQDRJrXoZLa3Lkh5GqnsFUzt7Qok",
-            "ZiVhAKxsvDeBoATdHsPwDAUuBeKYHwovTz841wNmemSnesn4PqHCYikBdFrCfdxY464yYuJZVoZs5fC3AQz9hQhSTf7q4LEb7",
+            "ZiVKvrKcmR53My1EmveLztCio6Yzwy3hYe2FvrqrtvDvisGHfWJ4BbG5oaivCmT8pLwr6EK3mN6GqXARUedEpQCyHrgiaTMPL",
         ),
     ];
 
