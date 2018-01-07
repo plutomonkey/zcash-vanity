@@ -108,7 +108,7 @@ pub fn vanity_device(finished: &atomic::AtomicBool, rng: &SecureRandom, tx: &Sen
 
                 let spending_key = SpendingKey::new(seed);
                 clear_console_line_80(&mut stderr);
-                print!("{}\n{}\n", spending_key.address(), spending_key);
+                print!("{}\n{}\n{}\n", spending_key.address(), spending_key, spending_key.viewing_key());
                 io::stdout().flush().unwrap();
 
                 if single_match {

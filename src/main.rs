@@ -53,7 +53,7 @@ fn main() {
         .arg(Arg::with_name("pattern")
              .index(1)
              .help("Zcash address prefix to be matched."))
-        .after_help("Matches will be printed to stdout; each z-addr on its own line followed by its spending key on the next line.\n\
+        .after_help("Matches will be printed to stdout; 3 lines per match (z-addr, spending key, incoming viewing key).\n\
                      You can import the spending key to your Zcash client using `zcash-cli z_importkey <key> <rescan>`.")
         .get_matches();
 
