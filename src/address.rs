@@ -19,7 +19,7 @@ pub struct SpendingKey {
 /// A Zcash viewing key.
 pub struct ViewingKey {
     pub sk_enc: [u8; 32],
-    pub pk_enc: [u8; 32],
+    pub a_pk: [u8; 32],
 }
 
 /// A Zcash payment address.
@@ -47,7 +47,7 @@ impl fmt::Display for ViewingKey {
         {
             let (prefix, rest) = data.split_at_mut(INVIEWING_KEY_PREFIX_LENGTH);
             prefix.copy_from_slice(&INVIEWING_KEY_PREFIX);
-            rest[..32].copy_from_slice(&self.pk_enc);
+            rest[..32].copy_from_slice(&self.a_pk);
             rest[32..].copy_from_slice(&self.sk_enc);
         }
 
@@ -83,25 +83,32 @@ impl SpendingKey {
     /// Calculates the payment address for this spending key
     pub fn address(&self) -> PaymentAddress {
         let mut a_pk = [0u8; 32];
+        let mut sk_enc = [0u8; 32];
+
         pseudorandom_function_a_pk(&mut a_pk, &self.a_sk);
+        pseudorandom_function_sk_enc(&mut sk_enc, &self.a_sk);
+        clamp_curve25519(&mut sk_enc);
+        let pk = &Scalar(sk_enc) * &ED25519_BASEPOINT;
+        let pk_enc = pk.compress_montgomery().unwrap().to_bytes();
 
         PaymentAddress {
             a_pk: a_pk,
-            pk_enc: self.viewing_key().pk_enc,
+            pk_enc: pk_enc,
         }
     }
 
     /// Computes a viewing key for this spending key.
     pub fn viewing_key(&self) -> ViewingKey {
         let mut sk_enc = [0u8; 32];
+        let mut a_pk = [0u8; 32];
         pseudorandom_function_sk_enc(&mut sk_enc, &self.a_sk);
         clamp_curve25519(&mut sk_enc);
-        let pk = &Scalar(sk_enc) * &ED25519_BASEPOINT;
-        let pk_enc = pk.compress_montgomery().unwrap().to_bytes();
+        pseudorandom_function_a_pk(&mut a_pk, &self.a_sk);
+
 
         ViewingKey {
             sk_enc: sk_enc,
-            pk_enc: pk_enc,
+            a_pk: a_pk,
         }
     }
 }
@@ -137,51 +144,51 @@ mod test {
 	(
 		"SKxt8pwrQipUL5KgZUcBAqyLj9R1YwMuRRR3ijGMCwCCqchmi8ut",
 		"zcJLC7a3aRJohMNCVjSZQ8jFuofhAHJNAY4aX5soDkYfgNejzKnEZbucJmVibLWCwK8dyyfDhNhf3foXDDTouweC382LcX5",
-		"ZiVKW6e4pHW9jRSa6v1BSYQY9FYeDpF2dS8h61DQJzGJe8WdyErzb57W4rALT235UKmEcu2wNnrWNc2V9mjNbqPHTDYpEXdqa",
+		"ZiVKYQyUcyAJLKwcosSeDxkGRhygFdAPWsr3m8UgjC5X85yqNyLTtJJJYNH83Wf2AQKU6TZsd65MXBZLFj6eSCAFcnCFuVCFS",
 	),
 	(
 		"SKxoo5QkFQgTbdc6EWRKyHPMdmtNDJhqudrAVhen9b4kjCwN6CeV",
 		"zcRYvLiURno1LhXq95e8avXFcH2fKKToSFfhqaVKTy8mGH7i6SJbfuWcm4h9rEA6DvswrbxDhFGDQgpdDYV8zwUoHvwNvFX",
-		"ZiVKkUCm1oqVfyN7e1TY1Xq6CPZgdG18CAirp1nAQWxWcDufxUUkmw11S1fRG23AVWv36rud1Fp3zDEUXEfLfbGyFU6XGTkKM",
+		"ZiVKfdhhmQ1fpXaxyW5zRXw4Dhg9cbKRgK7mNFoBLiKjiBZiHJYJTpV2gNMDMPY9sRC96vnKZcnTMSi65SKPyL4WNQNm9PT5H",
 	),
 	(
 		"SKxsVGKsCESoVb3Gfm762psjRtGHmjmv7HVjHckud5MnESfktUuG",
 		"zcWGguu2UPfNhh1ygWW9Joo3osvncsuehtz5ewvXd78vFDdnDCRNG6QeKSZpwZmYmkfEutPVf8HzCfBytqXWsEcF2iBAM1e",
-		"ZiVKhFPyGkDJjTXUuSi9yWBSnkJF8jLcnE3wSNLnexSgwGeoR8N7ZHRfoyyBMRiM1nbNVDPmcTQPYPBqmS1MDDh1B9fSTauDD",
+		"ZiVKkMUGwx4GgtwxTedRHYewVVskWicz8APQgdcYmvUsiLYgSh3cLAa8TwiR3shyNngGbLiUbYMkZ8F1giXmmcED98rDMwNSG",
 	),
 	(
 		"SKxp72QGQ2qtovHSoVnPp8jRFQpHBhG1xF8s27iRFjPXXkYMQUA6",
 		"zcWZomPYMEjJ49S4UHcvTnhjYqogfdYJuEDMURDpbkrz94bkzdTdJEZKWkkpQ8nK62eyLkZCvLZDFtLC2Cq5BmEK3WCKGMN",
-		"ZiVKnYSZMncaac1SmjB9nfbY3xPdwwiJCVP9inpy59pxVoAWAjSCHTn4rcbQJznWajZALLiFHkKE9XCZQAwSuSqSVbPKtjr5v",
+		"ZiVKkeb8STw7kpJQsjRCQKovQBciPcfjkpajuuS25DTXSQSVasnq4BkyaMLBBxAkZ8fv6f18woWgaA8W7kGvYp1C1ESaWGjwV",
 	),
 	(
 		"SKxpmLdykLu3xxSXtw1EA7iLJnXu8hFh8hhmW1B2J2194ijh5CR4",
 		"zcgjj3fJF59QGBufopx3F51jCjUpXbgEzec7YQT6jRt4Ebu5EV3AW4jHPN6ZdXhmygBvQDRJrXoZLa3Lkh5GqnsFUzt7Qok",
-		"ZiVKk7ZNUE2sjkNkmaJ5PwBEWm287XFZWeXvoAYcWacCtmuEpAGRDqSfvQstB6erm5bt8uptG3bSEjNipW63KRUv6TBbXrwk6"),
+		"ZiVKvpWQiDpxAvWTMLkjjSbCiBGc4kXhtkgAJfW1JVbCTUY4YaAVvVZzCz6wspG9qttciRFLEXm3HLQAmssFbUp9uPEkP3uu5"),
 	(
 		"SKxny894fJe2rmZjeuoE6GVfNkWoXfPp8337VrLLNWG56FfQtuS1",
 		"zcbxovDeXGJJikZH5wQkcQvYx1gzsRt9mR5UnQir6NY8hhPHdgK7z7dE1vfa55Bq3JHJu7isfuWQGYrvMbLnud74z2vS4tS",
-		"ZiVKZCknLZuWKZyyGoKDA4h2NRQeYkE5aLQFPPKAh7LYFjSKLhm4BAbk8ELyuwukmRxv29Cws8vaQNYLmq6unwvjZ1AgA5tZM",
+		"ZiVKr3bHGa79Kpy1zx2rC9xYd11tGvsY6fSvn2k1aEx97Z19WcMMW7KeSgE6VhJrAZ4RE6AmDU3oKqoXQiZfuHqzEBhW9o5UT",
 	),
 	(
 		"SKxoo5QkFQgTbdc6EWRKyHPMdmtNDJhqudrAVhen9b4kjCwN6CeV",
 		"zcRYvLiURno1LhXq95e8avXFcH2fKKToSFfhqaVKTy8mGH7i6SJbfuWcm4h9rEA6DvswrbxDhFGDQgpdDYV8zwUoHvwNvFX",
-		"ZiVKkUCm1oqVfyN7e1TY1Xq6CPZgdG18CAirp1nAQWxWcDufxUUkmw11S1fRG23AVWv36rud1Fp3zDEUXEfLfbGyFU6XGTkKM",
+		"ZiVKfdhhmQ1fpXaxyW5zRXw4Dhg9cbKRgK7mNFoBLiKjiBZiHJYJTpV2gNMDMPY9sRC96vnKZcnTMSi65SKPyL4WNQNm9PT5H",
 	),
 	(
 		"SKxsVGKsCESoVb3Gfm762psjRtGHmjmv7HVjHckud5MnESfktUuG",
 		"zcWGguu2UPfNhh1ygWW9Joo3osvncsuehtz5ewvXd78vFDdnDCRNG6QeKSZpwZmYmkfEutPVf8HzCfBytqXWsEcF2iBAM1e",
-		"ZiVKhFPyGkDJjTXUuSi9yWBSnkJF8jLcnE3wSNLnexSgwGeoR8N7ZHRfoyyBMRiM1nbNVDPmcTQPYPBqmS1MDDh1B9fSTauDD",
+		"ZiVKkMUGwx4GgtwxTedRHYewVVskWicz8APQgdcYmvUsiLYgSh3cLAa8TwiR3shyNngGbLiUbYMkZ8F1giXmmcED98rDMwNSG",
 	),
 	(
 		"SKxp72QGQ2qtovHSoVnPp8jRFQpHBhG1xF8s27iRFjPXXkYMQUA6",
 		"zcWZomPYMEjJ49S4UHcvTnhjYqogfdYJuEDMURDpbkrz94bkzdTdJEZKWkkpQ8nK62eyLkZCvLZDFtLC2Cq5BmEK3WCKGMN",
-		"ZiVKnYSZMncaac1SmjB9nfbY3xPdwwiJCVP9inpy59pxVoAWAjSCHTn4rcbQJznWajZALLiFHkKE9XCZQAwSuSqSVbPKtjr5v",
+		"ZiVKkeb8STw7kpJQsjRCQKovQBciPcfjkpajuuS25DTXSQSVasnq4BkyaMLBBxAkZ8fv6f18woWgaA8W7kGvYp1C1ESaWGjwV",
 	),
 	(
 		"SKxpmLdykLu3xxSXtw1EA7iLJnXu8hFh8hhmW1B2J2194ijh5CR4",
 		"zcgjj3fJF59QGBufopx3F51jCjUpXbgEzec7YQT6jRt4Ebu5EV3AW4jHPN6ZdXhmygBvQDRJrXoZLa3Lkh5GqnsFUzt7Qok",
-		"ZiVKk7ZNUE2sjkNkmaJ5PwBEWm287XFZWeXvoAYcWacCtmuEpAGRDqSfvQstB6erm5bt8uptG3bSEjNipW63KRUv6TBbXrwk6",
+		"ZiVKvpWQiDpxAvWTMLkjjSbCiBGc4kXhtkgAJfW1JVbCTUY4YaAVvVZzCz6wspG9qttciRFLEXm3HLQAmssFbUp9uPEkP3uu5",
 	),
     ];
 
