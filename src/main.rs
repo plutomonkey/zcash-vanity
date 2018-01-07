@@ -149,9 +149,10 @@ fn vanity(devices: &[(PlatformId, DeviceId)], patterns: &[Pattern], single_match
 
         if now_elapsed.as_secs() > 0 {
             let start_elapsed = start.elapsed();
-            let start_elapsed_secs = (start_elapsed.as_secs() as f64) + (start_elapsed.subsec_nanos() as f64 / 1_000_000_000.0);
+            let start_elapsed_secs = start_elapsed.as_secs() as f64 + f64::from(start_elapsed.subsec_nanos()) / 1_000_000_000.0;
+            let now_elapsed_secs = now_elapsed.as_secs() as f64 + f64::from(now_elapsed.subsec_nanos()) / 1_000_000_000.0;
 
-            let rate = cumulative_work as f64 / (now_elapsed.as_secs() as f64) + (now_elapsed.subsec_nanos() as f64 / 1_000_000_000.0);
+            let rate = cumulative_work as f64 / now_elapsed_secs;
             let lambda = rate / difficulty;
             let probability = 1. - (-start_elapsed_secs * lambda).exp();
 
