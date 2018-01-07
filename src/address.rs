@@ -203,7 +203,7 @@ mod test {
 
     #[test]
     fn spending_keys_to_viewing_keys() {
-        for &(spending_key_encoded, _,viewing_key_encoded) in ENCODED.iter() {
+        for &(spending_key_encoded, _, viewing_key_encoded) in ENCODED.iter() {
             let mut a_sk = [0u8; 32];
             a_sk.copy_from_slice(
                 &bs58::decode(spending_key_encoded).into_vec().unwrap()[2..34],
