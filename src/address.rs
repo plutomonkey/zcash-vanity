@@ -16,10 +16,10 @@ pub struct SpendingKey {
     a_sk: [u8; 32], // 252 bits; first 4 bits are always 0
 }
 
-/// A Zcash viewing key.
+/// A Zcash incoming viewing key.
 pub struct ViewingKey {
-    pub sk_enc: [u8; 32],
     pub a_pk: [u8; 32],
+    pub sk_enc: [u8; 32],
 }
 
 /// A Zcash payment address.
@@ -82,33 +82,28 @@ impl SpendingKey {
 
     /// Calculates the payment address for this spending key
     pub fn address(&self) -> PaymentAddress {
-        let mut a_pk = [0u8; 32];
-        let mut sk_enc = [0u8; 32];
-
-        pseudorandom_function_a_pk(&mut a_pk, &self.a_sk);
-        pseudorandom_function_sk_enc(&mut sk_enc, &self.a_sk);
-        clamp_curve25519(&mut sk_enc);
-        let pk = &Scalar(sk_enc) * &ED25519_BASEPOINT;
+        let viewing_key = self.viewing_key();
+        let pk = &Scalar(viewing_key.sk_enc) * &ED25519_BASEPOINT;
         let pk_enc = pk.compress_montgomery().unwrap().to_bytes();
 
         PaymentAddress {
-            a_pk: a_pk,
+            a_pk: viewing_key.a_pk,
             pk_enc: pk_enc,
         }
     }
 
     /// Computes a viewing key for this spending key.
     pub fn viewing_key(&self) -> ViewingKey {
-        let mut sk_enc = [0u8; 32];
         let mut a_pk = [0u8; 32];
+        let mut sk_enc = [0u8; 32];
+
+        pseudorandom_function_a_pk(&mut a_pk, &self.a_sk);
         pseudorandom_function_sk_enc(&mut sk_enc, &self.a_sk);
         clamp_curve25519(&mut sk_enc);
-        pseudorandom_function_a_pk(&mut a_pk, &self.a_sk);
-
 
         ViewingKey {
-            sk_enc: sk_enc,
             a_pk: a_pk,
+            sk_enc: sk_enc,
         }
     }
 }
