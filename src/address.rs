@@ -92,7 +92,7 @@ impl SpendingKey {
         }
     }
 
-    /// Computes a viewing key for this spending key.
+    /// Computes an incoming viewing key for this spending key.
     pub fn viewing_key(&self) -> ViewingKey {
         let mut a_pk = [0u8; 32];
         let mut sk_enc = [0u8; 32];
