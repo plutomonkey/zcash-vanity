@@ -4,7 +4,7 @@ use bs58;
 use byteorder::{BigEndian, ByteOrder};
 use core;
 use core::{KernelArg, CommandExecutionStatus, ContextProperties, Event, EventInfo, EventInfoResult, DeviceId, PlatformId};
-use ring::rand::SecureRandom;
+use rand::Rng;
 use std::{cmp, str, thread};
 use std::io::{self, Write};
 use std::sync::atomic;
@@ -16,7 +16,7 @@ use util::clear_console_line_80;
 const MAX_DATA: usize = 1 + 1024;
 const ITERATIONS_PER_THREAD: usize = 1024;
 
-pub fn vanity_device(finished: &atomic::AtomicBool, rng: &SecureRandom, tx: &Sender<u64>, platform: PlatformId, device: DeviceId, patterns_sorted: &[String], pattern_words: &[u64], single_match: bool) {
+pub fn vanity_device(finished: &atomic::AtomicBool, rng: &mut Rng, tx: &Sender<u64>, platform: PlatformId, device: DeviceId, patterns_sorted: &[String], pattern_words: &[u64], single_match: bool) {
 
     let pattern_count = patterns_sorted.len();
     let pattern_count_log2 = (32 - ((pattern_words.len()/2 - 1) as u32).leading_zeros()) as u32;
@@ -66,7 +66,7 @@ pub fn vanity_device(finished: &atomic::AtomicBool, rng: &SecureRandom, tx: &Sen
     let one_millis = Duration::from_millis(1);
     let mut stderr = io::stderr();
     'outer: loop {
-        rng.fill(&mut seed).unwrap();
+        rng.fill_bytes(&mut seed);
         if device_little_endian {
             seed[3] = 0xc0 | (seed[3] & 0x0f);
         } else {

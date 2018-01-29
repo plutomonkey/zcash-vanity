@@ -9,7 +9,7 @@ extern crate clap;
 extern crate crypto;
 extern crate curve25519_dalek;
 extern crate ocl_core as core;
-extern crate ring;
+extern crate rand;
 
 mod address;
 mod device;
@@ -20,7 +20,7 @@ mod util;
 use clap::{App, Arg};
 use core::{PlatformInfo, DeviceInfo, DeviceId, PlatformId};
 use pattern::Pattern;
-use ring::rand::SystemRandom;
+use rand::OsRng;
 use std::{thread, time};
 use std::fs::File;
 use std::io::{self, Read, Write};
@@ -121,17 +121,16 @@ fn vanity(devices: &[(PlatformId, DeviceId)], patterns: &[Pattern], single_match
     let (tx, rx): (Sender<u64>, Receiver<u64>) = mpsc::channel();
     let pattern_prefixes = Arc::new(pattern_prefixes);
     let pattern_words = Arc::new(pattern_words);
-    let rng = Arc::new(SystemRandom::new());
     let finished = Arc::new(atomic::AtomicBool::new(false));
 
     for &device_specifier in devices {
         let tx = tx.clone();
         let pattern_prefixes = pattern_prefixes.clone();
         let pattern_words = pattern_words.clone();
-        let rng = rng.clone();
         let finished = finished.clone();
         thread::spawn(move || {
-            device::vanity_device(&*finished, &*rng, &tx, device_specifier.0, device_specifier.1, &*pattern_prefixes, &*pattern_words, single_match);
+            let mut rng = OsRng::new().unwrap();
+            device::vanity_device(&*finished, &mut rng, &tx, device_specifier.0, device_specifier.1, &*pattern_prefixes, &*pattern_words, single_match);
             finished.store(true, atomic::Ordering::Relaxed);
         });
     }
