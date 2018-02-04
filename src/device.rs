@@ -40,8 +40,10 @@ pub fn vanity_device(finished: &atomic::AtomicBool, rng: &mut Rng, tx: &Sender<u
     let dev_patterns = unsafe { core::create_buffer(&context, core::MEM_READ_ONLY, pattern_words.len(), None::<&[u64]>).unwrap() };
     let dev_out = unsafe { core::create_buffer(&context, core::MEM_READ_WRITE, MAX_DATA, None::<&[u32]>).unwrap() };
 
-    core::enqueue_write_buffer(&queue, &dev_out, false, 0, &data, None::<Event>, None::<&mut Event>).unwrap();
-    core::enqueue_write_buffer(&queue, &dev_patterns, false, 0, pattern_words, None::<Event>, None::<&mut Event>).unwrap();
+    unsafe {
+        core::enqueue_write_buffer(&queue, &dev_out, false, 0, &data, None::<Event>, None::<&mut Event>).unwrap();
+        core::enqueue_write_buffer(&queue, &dev_patterns, false, 0, pattern_words, None::<Event>, None::<&mut Event>).unwrap();
+    }
 
     let local_size = match core::get_kernel_work_group_info(&compress, &device, core::KernelWorkGroupInfo::WorkGroupSize) {
         core::KernelWorkGroupInfoResult::WorkGroupSize(size) => [size, 0, 0],
@@ -73,7 +75,7 @@ pub fn vanity_device(finished: &atomic::AtomicBool, rng: &mut Rng, tx: &Sender<u
             seed[0] = 0xc0 | (seed[0] & 0x0f);
         }
 
-        core::enqueue_write_buffer(&queue, &dev_seed, false, 0, &seed, None::<Event>, None::<&mut Event>).unwrap();
+        unsafe { core::enqueue_write_buffer(&queue, &dev_seed, false, 0, &seed, None::<Event>, None::<&mut Event>).unwrap(); }
 
         core::set_kernel_arg(&compress, 0, KernelArg::Mem::<u8>(&dev_seed)).unwrap();
         core::set_kernel_arg(&compress, 1, KernelArg::Mem::<u64>(&dev_patterns)).unwrap();
@@ -81,7 +83,7 @@ pub fn vanity_device(finished: &atomic::AtomicBool, rng: &mut Rng, tx: &Sender<u
         core::set_kernel_arg(&compress, 3, KernelArg::Scalar(pattern_count_log2)).unwrap();
         core::set_kernel_arg(&compress, 4, KernelArg::Mem::<u32>(&dev_out)).unwrap();
 
-        core::enqueue_kernel(&queue, &compress, 1, None, &global_size, Some(local_size), None::<Event>, None::<&mut Event>).unwrap();
+        unsafe { core::enqueue_kernel(&queue, &compress, 1, None, &global_size, Some(local_size), None::<Event>, None::<&mut Event>).unwrap(); }
 
         let mut event = Event::null();
         unsafe { core::enqueue_read_buffer(&queue, &dev_out, false, 0, &mut data, None::<Event>, Some(&mut event)).unwrap(); }
@@ -118,7 +120,7 @@ pub fn vanity_device(finished: &atomic::AtomicBool, rng: &mut Rng, tx: &Sender<u
         }
 
         let zero_count = [0u32];
-        core::enqueue_write_buffer(&queue, &dev_out, false, 0, &zero_count, None::<Event>, None::<&mut Event>).unwrap();
+        unsafe { core::enqueue_write_buffer(&queue, &dev_out, false, 0, &zero_count, None::<Event>, None::<&mut Event>).unwrap(); }
 
         tx.send((ITERATIONS_PER_THREAD * global_size[0]) as u64).unwrap();
     }

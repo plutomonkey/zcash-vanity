@@ -1,4 +1,4 @@
-use curve25519_dalek::constants::ED25519_BASEPOINT;
+use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
 use curve25519_dalek::scalar::Scalar;
 use sha256::sha256_compress;
 use std::fmt;
@@ -83,8 +83,8 @@ impl SpendingKey {
     /// Calculates the payment address for this spending key
     pub fn address(&self) -> PaymentAddress {
         let viewing_key = self.viewing_key();
-        let pk = &Scalar(viewing_key.sk_enc) * &ED25519_BASEPOINT;
-        let pk_enc = pk.compress_montgomery().unwrap().to_bytes();
+        let pk = &Scalar::from_bits(viewing_key.sk_enc) * &ED25519_BASEPOINT_TABLE;
+        let pk_enc = pk.to_montgomery().compress().to_bytes();
 
         PaymentAddress {
             a_pk: viewing_key.a_pk,

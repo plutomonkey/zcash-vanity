@@ -11,11 +11,11 @@ keywords = ["vanity", "zcash"]
 categories = ["command-line-utilities", "cryptography"]
 
 [dependencies]
-bs58 = "~0.2.0"
-byteorder = "~1.1.0"
-clap = "~2.25.0"
-clippy = { version = "0.0.177", optional = true }
-curve25519-dalek = "~0.9.2"
-ocl-core = "~0.5.0"
-rand = "0.4"
-rust-crypto = "~0.2.36"
+bs58 = "^0.2"
+byteorder = "^1.1"
+clap = "^2.25"
+clippy = { version = "0.0.185", optional = true }
+curve25519-dalek = "^0.14"
+ocl-core = "^0.7"
+rand = "^0.4"
+rust-crypto = "^0.2"
