@@ -88,7 +88,7 @@ impl SpendingKey {
 
         PaymentAddress {
             a_pk: viewing_key.a_pk,
-            pk_enc: pk_enc,
+            pk_enc,
         }
     }
 
@@ -102,8 +102,8 @@ impl SpendingKey {
         clamp_curve25519(&mut sk_enc);
 
         ViewingKey {
-            a_pk: a_pk,
-            sk_enc: sk_enc,
+            a_pk,
+            sk_enc,
         }
     }
 }

@@ -19,8 +19,8 @@ impl Pattern {
     pub fn new(prefix: String) -> Result<Pattern, String> {
         match prefix_to_range_u64(prefix.as_str()) {
             Ok(range) => Ok(Pattern {
-                prefix: prefix,
-                range: range,
+                prefix,
+                range,
             }),
             Err(err) => Err(err),
         }
