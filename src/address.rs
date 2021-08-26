@@ -84,7 +84,7 @@ impl SpendingKey {
     pub fn address(&self) -> PaymentAddress {
         let viewing_key = self.viewing_key();
         let pk = &Scalar::from_bits(viewing_key.sk_enc) * &ED25519_BASEPOINT_TABLE;
-        let pk_enc = pk.to_montgomery().compress().to_bytes();
+        let pk_enc = pk.to_montgomery().to_bytes();
 
         PaymentAddress {
             a_pk: viewing_key.a_pk,

@@ -19,7 +19,7 @@ pub fn bs58_encode_check(input: &[u8]) -> String {
     bs58::encode(output).into_string()
 }
 
-pub fn clear_console_line_80(out: &mut Write) {
+pub fn clear_console_line_80(out: &mut dyn Write) {
     write!(out, "\r{}\r", " ".repeat(80)).unwrap();
     out.flush().unwrap();
 }

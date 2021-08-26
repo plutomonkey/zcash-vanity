@@ -1,7 +1,6 @@
 use byteorder::{BigEndian, ByteOrder};
 use crypto::sha2::sha256_digest_block;
 
-#[allow(unreadable_literal)]
 static H256: [u32; 8] = [
     0x6a09e667,
     0xbb67ae85,

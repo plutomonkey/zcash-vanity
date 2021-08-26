@@ -9,7 +9,7 @@ extern crate clap;
 extern crate crypto;
 extern crate curve25519_dalek;
 extern crate ocl_core as core;
-extern crate rand;
+extern crate getrandom;
 
 mod address;
 mod device;
@@ -20,7 +20,6 @@ mod util;
 use clap::{App, Arg};
 use core::{PlatformInfo, DeviceInfo, DeviceId, PlatformId};
 use pattern::Pattern;
-use rand::OsRng;
 use std::{thread, time};
 use std::fs::File;
 use std::io::{self, Read, Write};
@@ -129,8 +128,7 @@ fn vanity(devices: &[(PlatformId, DeviceId)], patterns: &[Pattern], single_match
         let pattern_words = pattern_words.clone();
         let finished = finished.clone();
         thread::spawn(move || {
-            let mut rng = OsRng::new().unwrap();
-            device::vanity_device(&*finished, &mut rng, &tx, device_specifier.0, device_specifier.1, &*pattern_prefixes, &*pattern_words, single_match);
+            device::vanity_device(&*finished, &tx, device_specifier.0, device_specifier.1, &*pattern_prefixes, &*pattern_words, single_match);
             finished.store(true, atomic::Ordering::Relaxed);
         });
     }
